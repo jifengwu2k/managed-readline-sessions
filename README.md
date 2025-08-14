@@ -21,7 +21,7 @@ Every Python CLI tool that wants:
 import os.path
 import typing
 
-from managed_readline_sessions import TabBasedTokenCompletionSession, ReadWriteHistoryFileSession
+from managed_readline_sessions import TabBasedTokenCompletionSession, ReadWriteHistoryFileSession, PrefilledExampleTextSession
 
 all_commands = ['help', 'exit', 'load']
 
@@ -45,13 +45,15 @@ token_boundary_delimiters = {' '}
 
 with ReadWriteHistoryFileSession(os.path.join(os.path.expanduser('~'), '.myapp_history')):
     while True:
-        
-        with TabBasedTokenCompletionSession(get_token_completions, token_boundary_delimiters):
-            try:
-                command_line = input('myapp> ')
-                # Process `command_line`...
-            except EOFError:
-                break  # History saved automatically
+        with TabBasedTokenCompletionSession(get_token_completions, token_boundary_delimiters):    
+            # Show a template each time (e.g., a frequently used command style)
+            with PrefilledExampleTextSession('myapp run --input='):
+                try:
+                    command_line = input('myapp> ')
+                    # The line will start with 'myapp run --input=' pre-inserted for the user to edit
+                    # Process `command_line`...
+                except EOFError:
+                    break  # History saved automatically
 ```
 
 Now your tool has:
@@ -67,6 +69,7 @@ All in just 10 lines of bulletproof code!
 - ✓ **Guaranteed cleanup** - Never corrupt a user's shell session again  
 - ✓ **Nested sessions** - Works correctly when called from other tools  
 - ✓ **Performance optimized** - Smart completion caching  
+- ✓ **Example-filled prompts** - Guide users with prefilled templates
 - ✓ **Battle-tested** - Properly handles edge cases most implementations miss  
 - ✓ **Zero dependencies** - Except `pyreadline` and `typing`, which are pure-Python
 - ✓ **Compatibility** - Supports all operating systems and Python 2+

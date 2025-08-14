@@ -39,6 +39,37 @@ def _readline_set_tab_binding(tab_binding):
     _current_tab_binding = tab_binding
 
 
+# Manually manage getting and setting pre-input hooks (because readline doesn't support getting pre-input hooks)
+DEFAULT_PRE_INPUT_HOOK = None
+_readline.set_pre_input_hook(DEFAULT_PRE_INPUT_HOOK)
+_current_pre_input_hook = DEFAULT_PRE_INPUT_HOOK
+
+
+def _readline_get_pre_input_hook():
+    """
+    Get the current pre-input hook function registered with readline.
+
+    Returns:
+        Callable or None: The currently registered pre-input hook function, or None if no hook is set.
+    """
+    global _current_pre_input_hook
+
+    return _current_pre_input_hook
+
+
+def _readline_set_pre_input_hook(pre_input_hook):
+    """
+    Set a new pre-input hook function for readline.
+
+    Args:
+        pre_input_hook (Callable or None): The pre-input hook function to register. Pass None to clear any existing hook.
+    """
+    global _current_pre_input_hook
+
+    _readline.set_pre_input_hook(pre_input_hook)
+    _current_pre_input_hook = pre_input_hook
+
+
 class _GetTokenCompletionsWrapper:
     __slots__ = (
         '_get_token_completions',
@@ -148,3 +179,42 @@ class ReadWriteHistoryFileSession:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         _readline.write_history_file(self._filename)
+
+
+class PrefilledExampleTextSession:
+    """
+    Context manager to pre-fill the readline input buffer with example or template text.
+
+    Upon entering, inserts the specified text at the prompt, allowing users to edit or accept it.
+    Upon exiting, restores the previously set pre-input hook.
+
+    Example:
+        with PrefilledExampleTextSession('example command --flag '):
+            user_input = input('Prompt> ')
+    """
+    __slots__ = (
+        '_old_pre_input_hook',
+        '_new_pre_input_hook'
+    )
+
+    def __init__(self, prefilled_example_text):
+        """
+        Initialize the session with text to pre-insert into the readline input buffer.
+
+        Args:
+            prefilled_example_text (str): The text to insert at the prompt before user input.
+        """
+        self._old_pre_input_hook = _readline_get_pre_input_hook()
+
+        def _new_pre_input_hook():
+            _readline.insert_text(prefilled_example_text)
+            _readline.redisplay()
+
+        self._new_pre_input_hook = _new_pre_input_hook
+
+    def __enter__(self):
+        _readline_set_pre_input_hook(self._new_pre_input_hook)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        _readline_set_pre_input_hook(self._old_pre_input_hook)
+
